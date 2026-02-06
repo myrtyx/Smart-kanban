@@ -2,17 +2,24 @@
 import cors from "cors";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 
 const app = express();
-const PORT = 3001;
+const PORT = Number(process.env.PORT || 3001);
+const LOGIN_USERNAME = process.env.KANBAN_USERNAME || "polina";
+const LOGIN_PASSWORD = process.env.KANBAN_PASSWORD || "Polina2004";
+const LOGIN_PASSWORD_HASH = crypto
+  .createHash("sha256")
+  .update(LOGIN_PASSWORD)
+  .digest("hex");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DB_PATH = path.join(__dirname, "db.json");
 
 app.use(cors({ origin: true }));
-app.use(express.json());
+app.use(express.json({ limit: "50kb" }));
 
 const createId = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -23,7 +30,14 @@ const createId = () => {
 
 const ensureDbFile = () => {
   if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({ projects: [], tasks: [] }, null, 2));
+    fs.writeFileSync(
+      DB_PATH,
+      JSON.stringify(
+        { projects: [], tasks: [], auth: { username: LOGIN_USERNAME } },
+        null,
+        2
+      )
+    );
   }
 };
 
@@ -31,12 +45,16 @@ const readDb = () => {
   ensureDbFile();
   const raw = fs.readFileSync(DB_PATH, "utf8");
   if (!raw || !raw.trim()) {
-    return { projects: [], tasks: [] };
+    return { projects: [], tasks: [], auth: { username: LOGIN_USERNAME } };
   }
   try {
     return JSON.parse(raw);
   } catch (error) {
-    const fallback = { projects: [], tasks: [] };
+    const fallback = {
+      projects: [],
+      tasks: [],
+      auth: { username: LOGIN_USERNAME },
+    };
     fs.writeFileSync(DB_PATH, JSON.stringify(fallback, null, 2));
     return fallback;
   }
@@ -76,12 +94,25 @@ const normalizeProjects = (projects) => {
 
 const seedIfEmpty = () => {
   const db = readDb();
+  if (!db.auth) {
+    db.auth = { username: LOGIN_USERNAME };
+  }
+  if (db.auth.username !== LOGIN_USERNAME) {
+    db.auth.username = LOGIN_USERNAME;
+  }
+  if (!db.auth.passwordHash) {
+    db.auth.passwordHash = LOGIN_PASSWORD_HASH;
+  }
+  if (!db.auth.token) {
+    db.auth.token = "";
+  }
+
   if (db.projects?.length) {
     const normalized = normalizeProjects(db.projects);
     if (JSON.stringify(normalized) !== JSON.stringify(db.projects)) {
       db.projects = normalized;
-      writeDb(db);
     }
+    writeDb(db);
     return;
   }
 
@@ -113,10 +144,50 @@ const seedIfEmpty = () => {
       projectId: defaultProjectId,
     },
   ];
-  writeDb({ projects, tasks });
+  writeDb({ projects, tasks, auth: db.auth });
 };
 
 seedIfEmpty();
+
+const requireAuth = (req, res, next) => {
+  if (req.path === "/login") {
+    return next();
+  }
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ")
+    ? header.slice(7)
+    : req.headers["x-api-token"];
+  const db = readDb();
+  if (!token || token !== db.auth?.token) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  return next();
+};
+
+app.use(requireAuth);
+
+app.post("/login", (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) {
+    return res.status(400).json({ error: "Username and password required" });
+  }
+  const passwordHash = crypto
+    .createHash("sha256")
+    .update(password)
+    .digest("hex");
+  if (username !== LOGIN_USERNAME || passwordHash !== LOGIN_PASSWORD_HASH) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
+  const db = readDb();
+  const token = crypto.randomBytes(24).toString("hex");
+  db.auth = {
+    username: LOGIN_USERNAME,
+    passwordHash: LOGIN_PASSWORD_HASH,
+    token,
+  };
+  writeDb(db);
+  return res.json({ token });
+});
 
 app.get("/projects", (req, res) => {
   const db = readDb();
