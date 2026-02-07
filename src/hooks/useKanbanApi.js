@@ -1,6 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-const API_BASE = "http://localhost:3001";
+const API_BASE = import.meta.env.DEV ? "http://localhost:3001" : "";
 const TOKEN_KEY = "kanban-token";
 
 const handleResponse = async (response, onUnauthorized) => {
@@ -27,6 +27,7 @@ export const useKanbanApi = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
+  const [hasUser, setHasUser] = useState(null);
   const pollRef = useRef(null);
 
   const authHeaders = useMemo(() => {
@@ -72,6 +73,20 @@ export const useKanbanApi = () => {
     [authHeaders, clearAuth, token]
   );
 
+  const fetchAuthStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/status`);
+      const data = await handleResponse(res);
+      setHasUser(Boolean(data?.hasUser));
+    } catch {
+      setHasUser(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAuthStatus();
+  }, [fetchAuthStatus]);
+
   useEffect(() => {
     if (token) {
       fetchAll(false);
@@ -110,6 +125,22 @@ export const useKanbanApi = () => {
     if (result?.token) {
       localStorage.setItem(TOKEN_KEY, result.token);
       setToken(result.token);
+      await fetchAll(false);
+    }
+    return result;
+  };
+
+  const signup = async ({ username, password }) => {
+    setError(null);
+    const result = await fetch(`${API_BASE}/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    }).then((res) => handleResponse(res));
+    if (result?.token) {
+      localStorage.setItem(TOKEN_KEY, result.token);
+      setToken(result.token);
+      setHasUser(true);
       await fetchAll(false);
     }
     return result;
@@ -190,11 +221,13 @@ export const useKanbanApi = () => {
 
   return {
     token,
+    hasUser,
     projects,
     tasks,
     loading,
     error,
     login,
+    signup,
     logout,
     refetch: fetchAll,
     createProject,

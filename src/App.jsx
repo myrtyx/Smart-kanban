@@ -32,16 +32,16 @@ const COLOR_PALETTE = [
   "#8b5cf6",
 ];
 
-const API_BASE = "http://localhost:3001";
-
 const App = () => {
   const {
     token,
+    hasUser,
     projects,
     tasks,
     loading,
     error,
     login,
+    signup,
     logout,
     createProject,
     updateProject,
@@ -200,7 +200,14 @@ const App = () => {
   );
 
   if (!token) {
-    return <LoginScreen onLogin={login} error={error} />;
+    return (
+      <LoginScreen
+        onLogin={login}
+        onSignup={signup}
+        hasUser={hasUser}
+        error={error}
+      />
+    );
   }
 
   return (
@@ -331,33 +338,18 @@ const App = () => {
   );
 };
 
-const LoginScreen = ({ onLogin, error }) => {
+const LoginScreen = ({ onLogin, onSignup, hasUser, error }) => {
+  const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState("");
-  const [bootstrapCreds, setBootstrapCreds] = useState(null);
-  const [showBootstrap, setShowBootstrap] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
-    fetch(`${API_BASE}/bootstrap`)
-      .then((res) => {
-        if (res.status === 204) return null;
-        return res.json();
-      })
-      .then((data) => {
-        if (!mounted || !data?.username || !data?.password) return;
-        setBootstrapCreds(data);
-        setShowBootstrap(true);
-      })
-      .catch(() => {
-        // ignore bootstrap errors
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    if (hasUser === false) {
+      setMode("signup");
+    }
+  }, [hasUser]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">
@@ -375,9 +367,13 @@ const LoginScreen = ({ onLogin, error }) => {
             }
             setSubmitting(true);
             try {
-              await onLogin({ username: username.trim(), password: password });
+              if (mode === "signup") {
+                await onSignup({ username: username.trim(), password: password });
+              } else {
+                await onLogin({ username: username.trim(), password: password });
+              }
             } catch (err) {
-              setLocalError(err.message || "Login failed");
+              setLocalError(err.message || "Authentication failed");
             } finally {
               setSubmitting(false);
             }
@@ -387,10 +383,12 @@ const LoginScreen = ({ onLogin, error }) => {
             Secure Access
           </p>
           <h1 className="mt-2 text-2xl font-semibold text-slate-900">
-            Smart Kanban Login
+            {mode === "signup" ? "Create account" : "Smart Kanban Login"}
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            Sign in to manage your tasks.
+            {mode === "signup"
+              ? "Create the single account for this workspace."
+              : "Sign in to manage your tasks."}
           </p>
 
           {(localError || error) && (
@@ -406,7 +404,7 @@ const LoginScreen = ({ onLogin, error }) => {
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               placeholder="Username"
-              autoComplete="username"
+              autoComplete={mode === "signup" ? "new-username" : "username"}
               required
             />
           </label>
@@ -418,7 +416,7 @@ const LoginScreen = ({ onLogin, error }) => {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Password"
-              autoComplete="current-password"
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
               required
             />
           </label>
@@ -427,66 +425,30 @@ const LoginScreen = ({ onLogin, error }) => {
             disabled={submitting}
             className="mt-6 w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-card transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {submitting ? "Signing in..." : "Sign in"}
+            {submitting
+              ? mode === "signup"
+                ? "Creating..."
+                : "Signing in..."
+              : mode === "signup"
+              ? "Create account"
+              : "Sign in"}
           </button>
+          {hasUser !== false && (
+            <button
+              type="button"
+              onClick={() =>
+                setMode((prev) => (prev === "login" ? "signup" : "login"))
+              }
+              className="mt-4 w-full rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 transition hover:bg-slate-50"
+            >
+              {mode === "login" ? "Create user" : "Back to login"}
+            </button>
+          )}
           <p className="mt-4 text-center text-xs text-slate-400">
             Single account access only.
           </p>
         </form>
       </div>
-
-      {showBootstrap && bootstrapCreds && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-900/40 p-6 backdrop-blur">
-          <div className="w-full max-w-md rounded-3xl border border-white/20 bg-white/90 p-6 shadow-card">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
-              First‑time Access
-            </p>
-            <h2 className="mt-2 text-xl font-semibold text-slate-900">
-              Save your login
-            </h2>
-            <p className="mt-2 text-sm text-slate-600">
-              This password is shown only once. Save it now.
-            </p>
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-              <div>
-                <span className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                  Username
-                </span>
-                <div className="mt-1 font-semibold">{bootstrapCreds.username}</div>
-              </div>
-              <div className="mt-3">
-                <span className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                  Password
-                </span>
-                <div className="mt-1 font-semibold">{bootstrapCreds.password}</div>
-              </div>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={async () => {
-                  const text = `Username: ${bootstrapCreds.username}\nPassword: ${bootstrapCreds.password}`;
-                  try {
-                    await navigator.clipboard.writeText(text);
-                  } catch {
-                    // ignore clipboard errors
-                  }
-                }}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 transition hover:bg-slate-50"
-              >
-                Copy
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowBootstrap(false)}
-                className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-card hover:bg-slate-800"
-              >
-                I saved it
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

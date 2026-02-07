@@ -11,6 +11,7 @@ const PORT = Number(process.env.PORT || 3001);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DB_PATH = path.join(__dirname, "db.json");
+const DIST_PATH = path.join(__dirname, "dist");
 
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: "50kb" }));
@@ -22,25 +23,14 @@ const createId = () => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
-const createCredentials = () => {
-  const username = `user_${crypto.randomBytes(3).toString("hex")}`;
-  const password = crypto.randomBytes(8).toString("base64url");
-  const passwordHash = crypto
-    .createHash("sha256")
-    .update(password)
-    .digest("hex");
-  return { username, password, passwordHash };
-};
+const hashPassword = (password) =>
+  crypto.createHash("sha256").update(password).digest("hex");
 
 const ensureDbFile = () => {
   if (!fs.existsSync(DB_PATH)) {
     fs.writeFileSync(
       DB_PATH,
-      JSON.stringify(
-        { projects: [], tasks: [], auth: {} },
-        null,
-        2
-      )
+      JSON.stringify({ projects: [], tasks: [], auth: {} }, null, 2)
     );
   }
 };
@@ -54,11 +44,7 @@ const readDb = () => {
   try {
     return JSON.parse(raw);
   } catch (error) {
-    const fallback = {
-      projects: [],
-      tasks: [],
-      auth: {},
-    };
+    const fallback = { projects: [], tasks: [], auth: {} };
     fs.writeFileSync(DB_PATH, JSON.stringify(fallback, null, 2));
     return fallback;
   }
@@ -100,15 +86,6 @@ const seedIfEmpty = () => {
   const db = readDb();
   if (!db.auth) {
     db.auth = {};
-  }
-  if (!db.auth.username || !db.auth.passwordHash) {
-    const creds = createCredentials();
-    db.auth.username = creds.username;
-    db.auth.passwordHash = creds.passwordHash;
-    db.auth.bootstrapPassword = creds.password;
-  }
-  if (!db.auth.token) {
-    db.auth.token = "";
   }
 
   if (db.projects?.length) {
@@ -153,8 +130,65 @@ const seedIfEmpty = () => {
 
 seedIfEmpty();
 
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+app.get("/auth/status", (req, res) => {
+  const db = readDb();
+  const hasUser = Boolean(db.auth?.username && db.auth?.passwordHash);
+  res.json({ hasUser });
+});
+
+app.post("/signup", (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) {
+    return res.status(400).json({ error: "Username and password required" });
+  }
+  const db = readDb();
+  if (db.auth?.username || db.auth?.passwordHash) {
+    return res.status(400).json({ error: "User already exists" });
+  }
+  const token = crypto.randomBytes(24).toString("hex");
+  db.auth = {
+    username: String(username).trim(),
+    passwordHash: hashPassword(password),
+    token,
+  };
+  writeDb(db);
+  return res.status(201).json({ token });
+});
+
+app.post("/login", (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) {
+    return res.status(400).json({ error: "Username and password required" });
+  }
+  const db = readDb();
+  if (!db.auth?.username || !db.auth?.passwordHash) {
+    return res.status(400).json({ error: "No user found. Create account." });
+  }
+  const passwordHash = hashPassword(password);
+  if (username !== db.auth.username || passwordHash !== db.auth.passwordHash) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
+  const token = crypto.randomBytes(24).toString("hex");
+  db.auth = {
+    username: db.auth.username,
+    passwordHash: db.auth.passwordHash,
+    token,
+  };
+  writeDb(db);
+  return res.json({ token });
+});
+
 const requireAuth = (req, res, next) => {
-  if (req.path === "/login" || req.path === "/bootstrap") {
+  if (
+    req.path === "/login" ||
+    req.path === "/signup" ||
+    req.path === "/auth/status" ||
+    req.path === "/health"
+  ) {
     return next();
   }
   const header = req.headers.authorization || "";
@@ -169,46 +203,6 @@ const requireAuth = (req, res, next) => {
 };
 
 app.use(requireAuth);
-
-app.get("/bootstrap", (req, res) => {
-  const db = readDb();
-  if (db.auth?.bootstrapPassword && db.auth?.username) {
-    const payload = {
-      username: db.auth.username,
-      password: db.auth.bootstrapPassword,
-    };
-    db.auth.bootstrapPassword = "";
-    writeDb(db);
-    return res.json(payload);
-  }
-  return res.status(204).send();
-});
-
-app.post("/login", (req, res) => {
-  const { username, password } = req.body || {};
-  if (!username || !password) {
-    return res.status(400).json({ error: "Username and password required" });
-  }
-  const passwordHash = crypto
-    .createHash("sha256")
-    .update(password)
-    .digest("hex");
-  const db = readDb();
-  if (
-    username !== db.auth?.username ||
-    passwordHash !== db.auth?.passwordHash
-  ) {
-    return res.status(401).json({ error: "Invalid credentials" });
-  }
-  const token = crypto.randomBytes(24).toString("hex");
-  db.auth = {
-    username: db.auth.username,
-    passwordHash: db.auth.passwordHash,
-    token,
-  };
-  writeDb(db);
-  return res.json({ token });
-});
 
 app.get("/projects", (req, res) => {
   const db = readDb();
@@ -358,6 +352,13 @@ app.delete("/tasks/:id", (req, res) => {
   writeDb(db);
   res.status(204).send();
 });
+
+if (fs.existsSync(DIST_PATH)) {
+  app.use(express.static(DIST_PATH));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(DIST_PATH, "index.html"));
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`Kanban API running on http://localhost:${PORT}`);

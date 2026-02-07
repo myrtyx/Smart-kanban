@@ -1,9 +1,9 @@
 ﻿# Smart Kanban
 
-Modern Kanban board built with React (Vite), Tailwind CSS, `@dnd-kit/core`, and a lightweight Node.js API backed by a JSON file.
+Modern Kanban board built with React (Vite), Tailwind CSS, `@dnd-kit/core`, and a lightweight Node.js API backed by a JSON file — served from a single server process.
 
 ## Overview
-Smart Kanban is a lightweight project/task management UI with four workflow stages. It includes project filtering, task creation/editing, drag‑and‑drop between columns, and persistent storage in the browser so data survives page reloads.
+Smart Kanban is a lightweight project/task management UI with four workflow stages. It includes project filtering, task creation/editing, drag‑and‑drop between columns, and persistent storage in the backend so data survives page reloads.
 
 The UI is intentionally minimal and product‑style: soft shadows, rounded cards, and a light background. It supports multiple projects, each with a color that visually tags tasks across the board.
 
@@ -20,10 +20,12 @@ The UI is intentionally minimal and product‑style: soft shadows, rounded cards
   - Delete other projects (with confirmation)
 - Task management:
   - Create, edit, delete tasks
-- Priority badges (No status / Low / Medium / High)
+  - Priority badges (No status / Low / Medium / High)
   - Optional description
   - Assign task to a project
   - Status selection in task form
+- Login screen with token persistence (single account)
+- First‑time user creation (single account)
 - Backend API with JSON file storage (`db.json`)
 - Default data on first launch (so the UI is not empty)
 - Confirmation modal before deleting a task or project
@@ -38,13 +40,18 @@ The UI is intentionally minimal and product‑style: soft shadows, rounded cards
 
 ## Project Structure
 ```
+server.js             # Express API + static file server
+db.json               # Local database file (projects/tasks/auth)
+
 src/
+  hooks/
+    useKanbanApi.js   # API integration + auth + polling
   components/
     KanbanBoard.jsx   # Board layout + columns
     Modal.jsx         # Reusable modal shell
     Sidebar.jsx       # Project list + actions
     TaskCard.jsx      # Task card UI + drag handle
-  App.jsx             # State, logic, modals, DnD
+  App.jsx             # State, handlers, modals, API integration
   index.css           # Tailwind + base styling
   main.jsx            # App entry
 ```
@@ -64,24 +71,17 @@ src/
 - `priority` — `none | low | medium | high`
 - `projectId` — reference to project
 
+## Auth
+- Single account login.
+- Token stored in `localStorage` (no re‑login on same device).
+- First visit requires creating the account (only once).
+
 ## Persistence
 Data is stored in `db.json` on disk by the Node.js server.  
 On first launch, a **Default Project** and a few demo tasks are created.
 
-## Drag & Drop Behavior
-- Tasks can be dragged across columns.
-- The card “follows” the pointer via `DragOverlay` for smooth dragging.
-- The target column is detected by `@dnd-kit/core` collision handling.
-
-## UI Details
-- Light gray background (`bg-slate-50/100`)
-- Card styling: white surface, rounded corners, soft shadow
-- Priority badges:
-  - High: rose/red
-  - Medium: amber/orange
-  - Low: emerald/green
-- Project colors appear as dots on task cards
-- Empty column state shows a message and an inline **Add Task** button
+## API
+In production, the frontend and API run on the **same origin** (single server).
 
 ## How to Run
 1. Install dependencies:
@@ -93,8 +93,13 @@ npm install
 npm run dev
 ```
 3. Open the URL shown in the console (default: `http://localhost:5173/`).
+4. Create the first account when prompted, then log in.
 
-API runs on `http://localhost:3001`.
+## Production (Single Command)
+```bash
+npm run start
+```
+This builds the frontend and serves it together with the API on one port.
 
 ## Build for Production
 ```bash
