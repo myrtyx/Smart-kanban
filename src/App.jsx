@@ -48,6 +48,7 @@ const App = () => {
     updateTask,
     deleteTask,
   } = useKanbanApi();
+  const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3001";
   const [selectedProjectId, setSelectedProjectId] = useState("all");
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isEditProjectsOpen, setIsEditProjectsOpen] = useState(false);
@@ -227,7 +228,17 @@ const App = () => {
             <>
               {error && (
                 <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                  {error}
+                  <div className="font-semibold">Failed to load data.</div>
+                  <div className="mt-1 text-xs text-rose-700/80">
+                    {error}
+                  </div>
+                  <div className="mt-2 text-xs text-rose-700/80">
+                    API base: {apiBase}
+                  </div>
+                  <div className="mt-1 text-xs text-rose-700/80">
+                    Check that the API is reachable and CORS is enabled for this
+                    domain.
+                  </div>
                 </div>
               )}
               <DndContext

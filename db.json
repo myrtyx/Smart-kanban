@@ -50,7 +50,7 @@
       "id": "99237cf7-f46c-4cc9-9aa0-c82d739c43be",
       "title": "Bachelor thesis",
       "description": "",
-      "status": "todo",
+      "status": "completed",
       "priority": "low",
       "projectId": "f2c1d19e-d3a8-464f-8567-ca405acff8f4"
     },
@@ -58,7 +58,7 @@
       "id": "e45452bd-b94e-423f-9231-71ed37a3f94a",
       "title": "Anatolij call",
       "description": "",
-      "status": "in-progress",
+      "status": "completed",
       "priority": "none",
       "projectId": "f2c1d19e-d3a8-464f-8567-ca405acff8f4"
     }

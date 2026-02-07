@@ -1,31 +1,58 @@
 ﻿# OpenClaw Integration Guide
 
-This document describes how to integrate **OpenClaw** (Telegram AI agent) with the Smart Kanban backend. OpenClaw accepts free‑form text commands in Telegram, interprets them with AI, and creates tasks via the API.
+This document describes how to integrate **OpenClaw** (Telegram AI agent) with the Smart Kanban backend. OpenClaw accepts free‑form text commands in Telegram, interprets them with AI, authenticates, and creates tasks via the API.
 
 ## 1. Purpose
 OpenClaw serves as a human‑friendly entry point to your Kanban system:
 - User writes a task in Telegram (free‑form text).
 - AI parses the intent (task title, priority, status, project, etc.).
+- OpenClaw logs in to the API to get a token.
 - OpenClaw calls the Kanban API to persist the task.
 
 ## 2. System Components
 1. **Telegram Bot** — receives user messages.
 2. **AI Interpreter** — extracts task fields (title, description, priority, status, project).
 3. **OpenClaw Server** — runs on your server, holds the bot token, calls the Kanban API.
-4. **Kanban API** — Express server (`server.js`) with `db.json` storage.
+4. **Kanban API** — Express server (`server.js`) with token auth and `db.json` storage.
 
-## 3. Kanban API (Target)
-Base URL: `http://localhost:3001`
+## 3. Authentication Flow
+The API requires a Bearer token.
+
+### Login request
+```
+POST /login
+Content-Type: application/json
+
+{
+  "username": "polina",
+  "password": "Polina2004"
+}
+```
+
+### Login response
+```
+{ "token": "<token>" }
+```
+
+### Authorized requests
+Use the token in `Authorization` header:
+```
+Authorization: Bearer <token>
+```
+
+## 4. Kanban API (Target)
+Base URL: `http://localhost:3001` (override in production)
 
 Required endpoints:
 - `GET /projects`
 - `POST /tasks`
 - `PUT /tasks/:id`
 
-For creating tasks, OpenClaw will use:
+Create task payload:
 ```
 POST /tasks
 Content-Type: application/json
+Authorization: Bearer <token>
 
 {
   "title": "...",
@@ -36,7 +63,7 @@ Content-Type: application/json
 }
 ```
 
-## 4. Parsing Strategy (Suggested)
+## 5. Parsing Strategy (Suggested)
 When a message is received, extract the following:
 
 - **title** — required. Use the main clause of the message.
@@ -54,7 +81,7 @@ When a message is received, extract the following:
 - **project** — try to match by name against `/projects` list.
   - if no match → use Default Project.
 
-## 5. Example Flow
+## 6. Example Flow
 User message:
 ```
 "Fix login page error in project Marketing, high priority"
@@ -72,32 +99,35 @@ AI output:
 ```
 
 OpenClaw steps:
-1. GET `/projects`
-2. Match `Marketing` → projectId
-3. POST `/tasks` with the resolved fields
+1. POST `/login` → get token
+2. GET `/projects`
+3. Match `Marketing` → projectId
+4. POST `/tasks` with the resolved fields
 
-## 6. Error Handling
+## 7. Error Handling
 - If project is not found → use Default Project.
 - If status is invalid → fallback to `todo`.
 - If priority is invalid → fallback to `none`.
 - If API request fails → send error message back to Telegram.
+- If token expires or is missing → re‑login.
 
-## 7. Security Notes
-- Do not expose the Kanban API publicly without authentication.
-- If running OpenClaw remotely, use a private network or protect API with a secret token.
+## 8. Security Notes
+- Do not expose the Kanban API publicly without HTTPS.
+- If running OpenClaw remotely, protect API with a firewall or private network.
 - Store Telegram bot token in environment variables.
 
-## 8. Suggested Extensions
+## 9. Suggested Extensions
 - Add `/tasks` search by title for updates.
 - Allow OpenClaw to move tasks by ID.
 - Add `/projects` creation from Telegram.
 - Add user‑based routing (per Telegram user).
 
-## 9. Minimal Pseudocode
+## 10. Minimal Pseudocode
 ```
 onMessage(text):
   intent = ai.parse(text)
-  projects = GET /projects
+  token = POST /login
+  projects = GET /projects (auth)
   projectId = match(intent.project, projects) || defaultProjectId
   payload = {
     title: intent.title,
@@ -106,7 +136,7 @@ onMessage(text):
     priority: normalizePriority(intent.priority),
     projectId
   }
-  POST /tasks payload
+  POST /tasks payload (auth)
 ```
 
 ---

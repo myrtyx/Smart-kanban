@@ -1,6 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-const API_BASE = "http://localhost:3001";
+const API_BASE =
+  import.meta.env.VITE_API_URL?.trim() || "http://localhost:3001";
 const TOKEN_KEY = "kanban-token";
 
 const handleResponse = async (response, onUnauthorized) => {
@@ -9,6 +10,9 @@ const handleResponse = async (response, onUnauthorized) => {
       onUnauthorized?.();
     }
     let message = "Request failed";
+    if (response.status === 0) {
+      message = "Network error";
+    }
     try {
       const data = await response.json();
       message = data.error || message;
