@@ -7,7 +7,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { ChevronDown, LogOut } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import KanbanBoard from "./components/KanbanBoard";
 import Modal from "./components/Modal";
@@ -34,15 +34,10 @@ const COLOR_PALETTE = [
 
 const App = () => {
   const {
-    token,
-    hasUser,
     projects,
     tasks,
     loading,
     error,
-    login,
-    signup,
-    logout,
     createProject,
     updateProject,
     deleteProject,
@@ -199,17 +194,6 @@ const App = () => {
     (project) => project.id === activeTask?.projectId
   );
 
-  if (!token) {
-    return (
-      <LoginScreen
-        onLogin={login}
-        onSignup={signup}
-        hasUser={hasUser}
-        error={error}
-      />
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-indigo-50">
       <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[320px_1fr]">
@@ -245,15 +229,6 @@ const App = () => {
                   statuses={STATUSES}
                   tasksByStatus={tasksByStatus}
                   projects={projects}
-                  headerAction={
-                    <button
-                      type="button"
-                      onClick={logout}
-                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
-                    >
-                      <LogOut size={14} /> Logout
-                    </button>
-                  }
                   onAddTask={(statusId) => {
                     setCreateTaskStatus(statusId ?? "todo");
                     setCreateTaskProjectId(
@@ -334,121 +309,6 @@ const App = () => {
           }}
         />
       )}
-    </div>
-  );
-};
-
-const LoginScreen = ({ onLogin, onSignup, hasUser, error }) => {
-  const [mode, setMode] = useState("login");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [localError, setLocalError] = useState("");
-
-  useEffect(() => {
-    if (hasUser === false) {
-      setMode("signup");
-    }
-  }, [hasUser]);
-
-  return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.18),_transparent_60%)]" />
-      <div className="absolute inset-0 backdrop-blur-2xl bg-slate-900/40" />
-      <div className="relative z-10 flex min-h-screen items-center justify-center p-6">
-        <form
-          className="w-full max-w-md rounded-3xl border border-white/20 bg-white/80 p-8 shadow-card backdrop-blur"
-          onSubmit={async (event) => {
-            event.preventDefault();
-            setLocalError("");
-            if (!username.trim() || !password.trim()) {
-              setLocalError("Enter username and password.");
-              return;
-            }
-            setSubmitting(true);
-            try {
-              if (mode === "signup") {
-                await onSignup({ username: username.trim(), password: password });
-              } else {
-                await onLogin({ username: username.trim(), password: password });
-              }
-            } catch (err) {
-              setLocalError(err.message || "Authentication failed");
-            } finally {
-              setSubmitting(false);
-            }
-          }}
-        >
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
-            Secure Access
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-900">
-            {mode === "signup" ? "Create account" : "Smart Kanban Login"}
-          </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            {mode === "signup"
-              ? "Create the single account for this workspace."
-              : "Sign in to manage your tasks."}
-          </p>
-
-          {(localError || error) && (
-            <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-              {localError || error}
-            </div>
-          )}
-
-          <label className="mt-6 block text-sm font-semibold text-slate-700">
-            Username
-            <input
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm focus:border-slate-400 focus:outline-none"
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              placeholder="Username"
-              autoComplete={mode === "signup" ? "new-username" : "username"}
-              required
-            />
-          </label>
-          <label className="mt-4 block text-sm font-semibold text-slate-700">
-            Password
-            <input
-              type="password"
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm focus:border-slate-400 focus:outline-none"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Password"
-              autoComplete={mode === "signup" ? "new-password" : "current-password"}
-              required
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="mt-6 w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-card transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {submitting
-              ? mode === "signup"
-                ? "Creating..."
-                : "Signing in..."
-              : mode === "signup"
-              ? "Create account"
-              : "Sign in"}
-          </button>
-          {hasUser !== false && (
-            <button
-              type="button"
-              onClick={() =>
-                setMode((prev) => (prev === "login" ? "signup" : "login"))
-              }
-              className="mt-4 w-full rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 transition hover:bg-slate-50"
-            >
-              {mode === "login" ? "Create user" : "Back to login"}
-            </button>
-          )}
-          <p className="mt-4 text-center text-xs text-slate-400">
-            Single account access only.
-          </p>
-        </form>
-      </div>
     </div>
   );
 };

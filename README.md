@@ -1,11 +1,11 @@
 ﻿# Smart Kanban (Single‑Server Deploy)
 
-This version is designed to run from a **single server process** that serves both the API and the built frontend. No `.env` is required.
+Modern Kanban board built with React (Vite), Tailwind CSS, and a lightweight Node.js API backed by a JSON file.
 
 ## What You Get
-- One command to start
+- One command to start (`npm run start`)
 - Same‑origin API (no CORS issues)
-- First‑time “Create Account” flow (single user)
+- No authentication (open internal tool)
 
 ## Local Dev
 ```bash
@@ -26,10 +26,9 @@ sudo PORT=80 npm run start
 Point `xlynx.site` to the server public IP.
 
 ### 3) HTTPS (recommended)
-Use an Nginx + Let’s Encrypt setup or your hosting panel.
+Use Nginx + Let’s Encrypt or your hosting panel.
 
 ## Notes
-- On first visit you’ll see **Create Account**. After creation, only login works.
 - `db.json` is the only storage. Keep a backup.
 
 ---

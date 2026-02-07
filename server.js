@@ -23,14 +23,11 @@ const createId = () => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
-const hashPassword = (password) =>
-  crypto.createHash("sha256").update(password).digest("hex");
-
 const ensureDbFile = () => {
   if (!fs.existsSync(DB_PATH)) {
     fs.writeFileSync(
       DB_PATH,
-      JSON.stringify({ projects: [], tasks: [], auth: {} }, null, 2)
+      JSON.stringify({ projects: [], tasks: [] }, null, 2)
     );
   }
 };
@@ -39,12 +36,12 @@ const readDb = () => {
   ensureDbFile();
   const raw = fs.readFileSync(DB_PATH, "utf8");
   if (!raw || !raw.trim()) {
-    return { projects: [], tasks: [], auth: {} };
+    return { projects: [], tasks: [] };
   }
   try {
     return JSON.parse(raw);
   } catch (error) {
-    const fallback = { projects: [], tasks: [], auth: {} };
+    const fallback = { projects: [], tasks: [] };
     fs.writeFileSync(DB_PATH, JSON.stringify(fallback, null, 2));
     return fallback;
   }
@@ -84,16 +81,12 @@ const normalizeProjects = (projects) => {
 
 const seedIfEmpty = () => {
   const db = readDb();
-  if (!db.auth) {
-    db.auth = {};
-  }
-
   if (db.projects?.length) {
     const normalized = normalizeProjects(db.projects);
     if (JSON.stringify(normalized) !== JSON.stringify(db.projects)) {
       db.projects = normalized;
+      writeDb(db);
     }
-    writeDb(db);
     return;
   }
 
@@ -125,7 +118,7 @@ const seedIfEmpty = () => {
       projectId: defaultProjectId,
     },
   ];
-  writeDb({ projects, tasks, auth: db.auth });
+  writeDb({ projects, tasks });
 };
 
 seedIfEmpty();
@@ -133,76 +126,6 @@ seedIfEmpty();
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
-
-app.get("/auth/status", (req, res) => {
-  const db = readDb();
-  const hasUser = Boolean(db.auth?.username && db.auth?.passwordHash);
-  res.json({ hasUser });
-});
-
-app.post("/signup", (req, res) => {
-  const { username, password } = req.body || {};
-  if (!username || !password) {
-    return res.status(400).json({ error: "Username and password required" });
-  }
-  const db = readDb();
-  if (db.auth?.username || db.auth?.passwordHash) {
-    return res.status(400).json({ error: "User already exists" });
-  }
-  const token = crypto.randomBytes(24).toString("hex");
-  db.auth = {
-    username: String(username).trim(),
-    passwordHash: hashPassword(password),
-    token,
-  };
-  writeDb(db);
-  return res.status(201).json({ token });
-});
-
-app.post("/login", (req, res) => {
-  const { username, password } = req.body || {};
-  if (!username || !password) {
-    return res.status(400).json({ error: "Username and password required" });
-  }
-  const db = readDb();
-  if (!db.auth?.username || !db.auth?.passwordHash) {
-    return res.status(400).json({ error: "No user found. Create account." });
-  }
-  const passwordHash = hashPassword(password);
-  if (username !== db.auth.username || passwordHash !== db.auth.passwordHash) {
-    return res.status(401).json({ error: "Invalid credentials" });
-  }
-  const token = crypto.randomBytes(24).toString("hex");
-  db.auth = {
-    username: db.auth.username,
-    passwordHash: db.auth.passwordHash,
-    token,
-  };
-  writeDb(db);
-  return res.json({ token });
-});
-
-const requireAuth = (req, res, next) => {
-  if (
-    req.path === "/login" ||
-    req.path === "/signup" ||
-    req.path === "/auth/status" ||
-    req.path === "/health"
-  ) {
-    return next();
-  }
-  const header = req.headers.authorization || "";
-  const token = header.startsWith("Bearer ")
-    ? header.slice(7)
-    : req.headers["x-api-token"];
-  const db = readDb();
-  if (!token || token !== db.auth?.token) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-  return next();
-};
-
-app.use(requireAuth);
 
 app.get("/projects", (req, res) => {
   const db = readDb();

@@ -1,57 +1,19 @@
 ﻿# OpenClaw Integration Guide
 
-This document describes how to integrate **OpenClaw** (Telegram AI agent) with the Smart Kanban backend. OpenClaw accepts free‑form text commands in Telegram, interprets them with AI, authenticates, and creates tasks via the API.
+This document describes how to integrate **OpenClaw** (Telegram AI agent) with the Smart Kanban backend. OpenClaw accepts free‑form text commands in Telegram, interprets them with AI, and creates tasks via the API.
 
 ## 1. Purpose
-OpenClaw serves as a human‑friendly entry point to your Kanban system:
 - User writes a task in Telegram (free‑form text).
 - AI parses the intent (task title, priority, status, project, etc.).
-- OpenClaw logs in to the API to get a token.
 - OpenClaw calls the Kanban API to persist the task.
 
 ## 2. System Components
 1. **Telegram Bot** — receives user messages.
-2. **AI Interpreter** — extracts task fields (title, description, priority, status, project).
-3. **OpenClaw Server** — runs on your server, holds the bot token, calls the Kanban API.
-4. **Kanban API** — Express server (`server.js`) with token auth and `db.json` storage.
+2. **AI Interpreter** — extracts task fields.
+3. **OpenClaw Server** — runs on your server and calls the Kanban API.
+4. **Kanban API** — Express server (`server.js`) with `db.json` storage.
 
-## 3. Authentication Flow
-The API requires a Bearer token.
-
-### Create account (first time only)
-```
-POST /signup
-Content-Type: application/json
-
-{
-  "username": "...",
-  "password": "..."
-}
-```
-
-### Login request
-```
-POST /login
-Content-Type: application/json
-
-{
-  "username": "...",
-  "password": "..."
-}
-```
-
-### Login response
-```
-{ "token": "<token>" }
-```
-
-### Authorized requests
-Use the token in `Authorization` header:
-```
-Authorization: Bearer <token>
-```
-
-## 4. Kanban API (Target)
+## 3. Kanban API (Target)
 Base URL: same origin in production (API + frontend served by `server.js`).
 
 Required endpoints:
@@ -63,7 +25,6 @@ Create task payload:
 ```
 POST /tasks
 Content-Type: application/json
-Authorization: Bearer <token>
 
 {
   "title": "...",
@@ -74,25 +35,23 @@ Authorization: Bearer <token>
 }
 ```
 
-## 5. Parsing Strategy (Suggested)
-When a message is received, extract the following:
-
-- **title** — required. Use the main clause of the message.
-- **description** — optional. Use any extra sentence or details.
-- **priority** — map common words:
+## 4. Parsing Strategy (Suggested)
+- **title** — required. Use the main clause.
+- **description** — optional details.
+- **priority** — map words:
   - `urgent`, `high` → `high`
   - `medium`, `normal` → `medium`
   - `low`, `minor` → `low`
   - if missing → `none`
-- **status** — map pipeline keywords:
+- **status** — map keywords:
   - `todo`, `backlog` → `todo`
   - `doing`, `in progress` → `in-progress`
   - `review`, `checking` → `checking`
   - `done`, `completed` → `completed`
-- **project** — try to match by name against `/projects` list.
+- **project** — match by name via `/projects`.
   - if no match → use Default Project.
 
-## 6. Example Flow
+## 5. Example Flow
 User message:
 ```
 "Fix login page error in project Marketing, high priority"
@@ -110,46 +69,15 @@ AI output:
 ```
 
 OpenClaw steps:
-1. Create account (only once): `POST /signup`
-2. Login: `POST /login` → get token
-3. GET `/projects`
-4. Match `Marketing` → projectId
-5. POST `/tasks` with the resolved fields
+1. GET `/projects`
+2. Match `Marketing` → projectId
+3. POST `/tasks` with the resolved fields
 
-## 7. Error Handling
+## 6. Error Handling
 - If project is not found → use Default Project.
 - If status is invalid → fallback to `todo`.
 - If priority is invalid → fallback to `none`.
-- If API request fails → send error message back to Telegram.
-- If token expires or is missing → re‑login.
-
-## 8. Security Notes
-- Do not expose the Kanban API publicly without HTTPS.
-- If running OpenClaw remotely, protect API with a firewall or private network.
-- Store Telegram bot token in environment variables.
-
-## 9. Suggested Extensions
-- Add `/tasks` search by title for updates.
-- Allow OpenClaw to move tasks by ID.
-- Add `/projects` creation from Telegram.
-- Add user‑based routing (per Telegram user).
-
-## 10. Minimal Pseudocode
-```
-onMessage(text):
-  intent = ai.parse(text)
-  token = POST /login
-  projects = GET /projects (auth)
-  projectId = match(intent.project, projects) || defaultProjectId
-  payload = {
-    title: intent.title,
-    description: intent.description,
-    status: normalizeStatus(intent.status),
-    priority: normalizePriority(intent.priority),
-    projectId
-  }
-  POST /tasks payload (auth)
-```
+- If API request fails → report error to user.
 
 ---
 If you want, I can implement the actual OpenClaw server stub + webhook next.
