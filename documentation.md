@@ -194,5 +194,82 @@ npm run dev
 npm run build
 ```
 
+## 17. Deployment Checklist (Step‑by‑Step)
+Use this sequence to avoid **fail to fetch** / **unauthorized** errors.
+
+### A. Prerequisites
+1. Node.js >= 20.19 (or 22.12+).
+2. Two processes: **API server** and **frontend** must both run.
+
+### B. Configure Environment
+1. **Backend `.env`** (server runtime):
+```
+KANBAN_USERNAME=polina
+KANBAN_PASSWORD=Polina2004
+```
+2. **Frontend `.env`** (Vite build/runtime):
+```
+VITE_API_URL=http://YOUR_API_HOST:3001
+```
+Notes:
+- `VITE_API_URL` must be reachable **from the browser**.
+- If running on a remote server, it must be the public IP or domain.
+
+### C. Start the API
+1. From project root:
+```
+npm run server
+```
+2. Verify:
+```
+curl http://YOUR_API_HOST:3001/projects
+```
+Expected: `401 Unauthorized` (this is correct without token).
+
+### D. Login (Get Token)
+1. Send login request:
+```
+curl -X POST http://YOUR_API_HOST:3001/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"polina","password":"Polina2004"}'
+```
+2. Response example:
+```
+{ "token": "..." }
+```
+
+### E. Verify Token Works
+```
+curl http://YOUR_API_HOST:3001/projects \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+Expected: JSON array of projects.
+
+### F. Start Frontend
+1. Build or dev:
+```
+npm run dev
+```
+2. Open the Vite URL (default `http://localhost:5173`).
+
+### G. Common Errors (Fast Fixes)
+- **fail to fetch**
+  - `VITE_API_URL` is wrong or unreachable from browser.
+  - API server not running or blocked by firewall.
+  - Use server’s public IP/domain, not `localhost`, when accessing from another machine.
+
+- **unauthorized**
+  - Login failed or token missing.
+  - Wrong `KANBAN_USERNAME` / `KANBAN_PASSWORD` on server.
+  - API restarted and old token became invalid → log in again.
+
+- **CORS**
+  - If API is on a different domain, ensure it’s reachable (current server allows all origins).
+
+### H. Recommended Production Flow
+1. Start API first (`npm run server`).
+2. Build frontend with correct `VITE_API_URL`.
+3. Serve frontend (Vite preview, static host, or Nginx).
+
 ---
 If you need additional architectural details (e.g., state diagrams, data flow charts, or a plugin API), extend this document accordingly.
