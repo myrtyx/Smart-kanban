@@ -81,9 +81,10 @@ const KanbanBoard = ({
   onAddTask,
   onEditTask,
   onDeleteTask,
+  headerAction,
 }) => {
   return (
-    <section className="flex h-full flex-col">
+    <section className="flex flex-1 flex-col">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
@@ -91,6 +92,7 @@ const KanbanBoard = ({
           </p>
           <h2 className="text-2xl font-semibold text-slate-900">Your tasks</h2>
         </div>
+        {headerAction}
       </div>
 
       <div className="mt-6 grid flex-1 grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-4">

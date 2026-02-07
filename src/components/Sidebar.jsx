@@ -26,42 +26,44 @@ const Sidebar = ({
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
           Projects
         </p>
-        <button
-          type="button"
-          onClick={() => onSelectProject("all")}
-          className={`mt-4 flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
-            selectedProjectId === "all"
-              ? "bg-slate-900 text-white shadow-card"
-              : "text-slate-700 hover:bg-slate-100"
-          }`}
-        >
-          <span className="flex items-center gap-2">
-            <Layers size={16} /> All Tasks
-          </span>
-          <span className="text-xs font-semibold">{tasksCount}</span>
-        </button>
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-white/70 p-2">
+          <button
+            type="button"
+            onClick={() => onSelectProject("all")}
+            className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
+              selectedProjectId === "all"
+                ? "bg-slate-900 text-white shadow-card"
+                : "text-slate-700 hover:bg-slate-100"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Layers size={16} /> All Tasks
+            </span>
+            <span className="text-xs font-semibold">{tasksCount}</span>
+          </button>
 
-        <div className="mt-4 space-y-2">
-          {projects.map((project) => (
-            <button
-              key={project.id}
-              type="button"
-              onClick={() => onSelectProject(project.id)}
-              className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
-                selectedProjectId === project.id
-                  ? "bg-slate-100 text-slate-900"
-                  : "text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <span
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: project.color }}
-                />
-                {project.name}
-              </span>
-            </button>
-          ))}
+          <div className="mt-2 space-y-2">
+            {projects.map((project) => (
+              <button
+                key={project.id}
+                type="button"
+                onClick={() => onSelectProject(project.id)}
+                className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
+                  selectedProjectId === project.id
+                    ? "bg-slate-100 text-slate-900"
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: project.color }}
+                  />
+                  {project.name}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
         <button
@@ -80,7 +82,7 @@ const Sidebar = ({
         </button>
       </div>
 
-      <div className="mt-auto rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-4 text-white shadow-card">
+      <div className="mt-auto hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-4 text-white shadow-card lg:block">
         <p className="text-sm font-semibold">Stay focused</p>
         <p className="mt-1 text-xs text-slate-200">
           Drag tasks between columns to update their status instantly.

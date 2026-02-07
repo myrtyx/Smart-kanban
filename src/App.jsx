@@ -213,16 +213,7 @@ const App = () => {
           tasksCount={tasks.length}
         />
 
-        <main className="px-6 py-8">
-          <div className="mb-4 flex items-center justify-end">
-            <button
-              type="button"
-              onClick={logout}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
-            >
-              <LogOut size={14} /> Logout
-            </button>
-          </div>
+        <main className="flex h-full flex-col px-6 pb-6 pt-10">
           {loading ? (
             <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-500">
               Loading board...
@@ -245,6 +236,15 @@ const App = () => {
                   statuses={STATUSES}
                   tasksByStatus={tasksByStatus}
                   projects={projects}
+                  headerAction={
+                    <button
+                      type="button"
+                      onClick={logout}
+                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
+                    >
+                      <LogOut size={14} /> Logout
+                    </button>
+                  }
                   onAddTask={(statusId) => {
                     setCreateTaskStatus(statusId ?? "todo");
                     setCreateTaskProjectId(
