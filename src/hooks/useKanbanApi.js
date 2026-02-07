@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const API_BASE = "http://localhost:3001";
 const TOKEN_KEY = "kanban-token";
@@ -27,6 +27,7 @@ export const useKanbanApi = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
+  const pollRef = useRef(null);
 
   const authHeaders = useMemo(() => {
     if (!token) return {};
@@ -67,6 +68,38 @@ export const useKanbanApi = () => {
       fetchAll();
     }
   }, [fetchAll, token]);
+
+  useEffect(() => {
+    if (!token) {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+      return;
+    }
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+    }
+    pollRef.current = setInterval(() => {
+      fetchAll();
+    }, 5000);
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [fetchAll, token]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchAll();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [fetchAll]);
 
   const login = async ({ username, password }) => {
     setError(null);

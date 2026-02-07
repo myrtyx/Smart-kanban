@@ -74,6 +74,9 @@ const App = () => {
     }
   }, [projects, selectedProjectId]);
 
+  const defaultProjectId =
+    projects.find((project) => project.isDefault)?.id || projects[0]?.id;
+
   const filteredTasks = useMemo(() => {
     if (selectedProjectId === "all") {
       return tasks;
@@ -139,6 +142,8 @@ const App = () => {
         await createTask({
           ...form,
           status: form.status ?? createTaskStatus ?? "todo",
+          priority: form.priority ?? "none",
+          projectId: form.projectId ?? defaultProjectId,
         });
       }
     } catch (err) {
@@ -248,7 +253,9 @@ const App = () => {
                   onAddTask={(statusId) => {
                     setCreateTaskStatus(statusId ?? "todo");
                     setCreateTaskProjectId(
-                      selectedProjectId === "all" ? null : selectedProjectId
+                      selectedProjectId === "all"
+                        ? defaultProjectId ?? null
+                        : selectedProjectId
                     );
                     setEditingTask(null);
                     setIsTaskModalOpen(true);
@@ -657,10 +664,12 @@ const SelectField = ({
 };
 
 const TaskModal = ({ projects, task, initialProjectId, onClose, onSubmit }) => {
+  const defaultProjectId =
+    projects.find((project) => project.isDefault)?.id || projects[0]?.id;
   const [title, setTitle] = useState(task?.title ?? "");
   const [description, setDescription] = useState(task?.description ?? "");
   const [projectId, setProjectId] = useState(
-    task?.projectId ?? initialProjectId ?? projects[0]?.id
+    task?.projectId ?? initialProjectId ?? defaultProjectId
   );
   const [priority, setPriority] = useState(task?.priority ?? "none");
   const [status, setStatus] = useState(task?.status ?? "todo");
