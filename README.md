@@ -84,6 +84,7 @@ Base URL defaults to `http://localhost:3001`. You can override it in frontend wi
 ```
 VITE_API_URL=https://your-api-domain.com
 ```
+If you omit the port, the frontend will automatically use `:3001`.
 
 ## How to Run
 1. Install dependencies:

@@ -42,6 +42,7 @@ Authorization: Bearer <token>
 
 ## 4. Kanban API (Target)
 Base URL: `http://localhost:3001` (override in production)
+If `VITE_API_URL` is set without a port, the frontend will use `:3001` automatically.
 
 Required endpoints:
 - `GET /projects`

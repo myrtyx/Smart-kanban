@@ -68,8 +68,10 @@ Initial load behavior on server start:
 
 ## 6. API Endpoints
 Base URL: `http://localhost:3001`
+If `VITE_API_URL` is set without a port, the frontend automatically appends `:3001`.
 
 - `POST /login` — login and receive token
+- `GET /health` — health check (no auth)
 - `GET /projects` — list projects
 - `POST /projects` — create project
 - `PUT /projects/:id` — update project (name/color)

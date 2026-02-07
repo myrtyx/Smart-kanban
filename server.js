@@ -20,6 +20,16 @@ const DB_PATH = path.join(__dirname, "db.json");
 
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: "50kb" }));
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const ms = Date.now() - start;
+    console.log(
+      `${req.method} ${req.originalUrl} ${res.statusCode} ${ms}ms`
+    );
+  });
+  next();
+});
 
 const createId = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -150,7 +160,7 @@ const seedIfEmpty = () => {
 seedIfEmpty();
 
 const requireAuth = (req, res, next) => {
-  if (req.path === "/login") {
+  if (req.path === "/login" || req.path === "/health") {
     return next();
   }
   const header = req.headers.authorization || "";
@@ -187,6 +197,10 @@ app.post("/login", (req, res) => {
   };
   writeDb(db);
   return res.json({ token });
+});
+
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
 });
 
 app.get("/projects", (req, res) => {

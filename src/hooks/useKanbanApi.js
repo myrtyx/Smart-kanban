@@ -1,7 +1,13 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-const API_BASE =
-  import.meta.env.VITE_API_URL?.trim() || "http://localhost:3001";
+const rawApiBase = import.meta.env.VITE_API_URL?.trim() || "";
+const normalizeApiBase = (value) => {
+  if (!value) return "http://localhost:3001";
+  const hasPort = /:\d{2,5}$/.test(value.replace(/\/+$/, ""));
+  if (hasPort) return value.replace(/\/+$/, "");
+  return `${value.replace(/\/+$/, "")}:3001`;
+};
+const API_BASE = normalizeApiBase(rawApiBase);
 const TOKEN_KEY = "kanban-token";
 
 const handleResponse = async (response, onUnauthorized) => {
