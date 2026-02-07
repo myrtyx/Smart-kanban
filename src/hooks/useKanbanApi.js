@@ -41,10 +41,12 @@ export const useKanbanApi = () => {
     setTasks([]);
   }, []);
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async (silent = false) => {
     if (!token) return;
-    setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const [projectsData, tasksData] = await Promise.all([
         fetch(`${API_BASE}/projects`, {
@@ -57,15 +59,19 @@ export const useKanbanApi = () => {
       setProjects(projectsData || []);
       setTasks(tasksData || []);
     } catch (err) {
-      setError(err.message || "Failed to load data");
+      if (!silent) {
+        setError(err.message || "Failed to load data");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [authHeaders, clearAuth, token]);
 
   useEffect(() => {
     if (token) {
-      fetchAll();
+      fetchAll(false);
     }
   }, [fetchAll, token]);
 
@@ -81,7 +87,7 @@ export const useKanbanApi = () => {
       clearInterval(pollRef.current);
     }
     pollRef.current = setInterval(() => {
-      fetchAll();
+      fetchAll(true);
     }, 5000);
     return () => {
       if (pollRef.current) {
@@ -94,7 +100,7 @@ export const useKanbanApi = () => {
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
-        fetchAll();
+        fetchAll(true);
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
