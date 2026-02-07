@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const API_BASE = "http://localhost:3001";
 const TOKEN_KEY = "kanban-token";
@@ -27,6 +27,7 @@ export const useKanbanApi = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
+  const pollRef = useRef(null);
 
   const authHeaders = useMemo(() => {
     if (!token) return {};
@@ -40,32 +41,63 @@ export const useKanbanApi = () => {
     setTasks([]);
   }, []);
 
-  const fetchAll = useCallback(async () => {
-    if (!token) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const [projectsData, tasksData] = await Promise.all([
-        fetch(`${API_BASE}/projects`, {
-          headers: authHeaders,
-        }).then((res) => handleResponse(res, clearAuth)),
-        fetch(`${API_BASE}/tasks`, {
-          headers: authHeaders,
-        }).then((res) => handleResponse(res, clearAuth)),
-      ]);
-      setProjects(projectsData || []);
-      setTasks(tasksData || []);
-    } catch (err) {
-      setError(err.message || "Failed to load data");
-    } finally {
-      setLoading(false);
-    }
-  }, [authHeaders, clearAuth, token]);
+  const fetchAll = useCallback(
+    async (silent = false) => {
+      if (!token) return;
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
+      try {
+        const [projectsData, tasksData] = await Promise.all([
+          fetch(`${API_BASE}/projects`, {
+            headers: authHeaders,
+          }).then((res) => handleResponse(res, clearAuth)),
+          fetch(`${API_BASE}/tasks`, {
+            headers: authHeaders,
+          }).then((res) => handleResponse(res, clearAuth)),
+        ]);
+        setProjects(projectsData || []);
+        setTasks(tasksData || []);
+      } catch (err) {
+        if (!silent) {
+          setError(err.message || "Failed to load data");
+        }
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    [authHeaders, clearAuth, token]
+  );
 
   useEffect(() => {
     if (token) {
-      fetchAll();
+      fetchAll(false);
     }
+  }, [fetchAll, token]);
+
+  useEffect(() => {
+    if (!token) {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+      return;
+    }
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+    }
+    pollRef.current = setInterval(() => {
+      fetchAll(true);
+    }, 5000);
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
   }, [fetchAll, token]);
 
   const login = async ({ username, password }) => {
@@ -78,7 +110,7 @@ export const useKanbanApi = () => {
     if (result?.token) {
       localStorage.setItem(TOKEN_KEY, result.token);
       setToken(result.token);
-      await fetchAll();
+      await fetchAll(false);
     }
     return result;
   };

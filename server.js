@@ -7,12 +7,6 @@ import { fileURLToPath } from "url";
 
 const app = express();
 const PORT = Number(process.env.PORT || 3001);
-const LOGIN_USERNAME = process.env.KANBAN_USERNAME || "polina";
-const LOGIN_PASSWORD = process.env.KANBAN_PASSWORD || "Polina2004";
-const LOGIN_PASSWORD_HASH = crypto
-  .createHash("sha256")
-  .update(LOGIN_PASSWORD)
-  .digest("hex");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,12 +22,22 @@ const createId = () => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
+const createCredentials = () => {
+  const username = `user_${crypto.randomBytes(3).toString("hex")}`;
+  const password = crypto.randomBytes(8).toString("base64url");
+  const passwordHash = crypto
+    .createHash("sha256")
+    .update(password)
+    .digest("hex");
+  return { username, password, passwordHash };
+};
+
 const ensureDbFile = () => {
   if (!fs.existsSync(DB_PATH)) {
     fs.writeFileSync(
       DB_PATH,
       JSON.stringify(
-        { projects: [], tasks: [], auth: { username: LOGIN_USERNAME } },
+        { projects: [], tasks: [], auth: {} },
         null,
         2
       )
@@ -45,7 +49,7 @@ const readDb = () => {
   ensureDbFile();
   const raw = fs.readFileSync(DB_PATH, "utf8");
   if (!raw || !raw.trim()) {
-    return { projects: [], tasks: [], auth: { username: LOGIN_USERNAME } };
+    return { projects: [], tasks: [], auth: {} };
   }
   try {
     return JSON.parse(raw);
@@ -53,7 +57,7 @@ const readDb = () => {
     const fallback = {
       projects: [],
       tasks: [],
-      auth: { username: LOGIN_USERNAME },
+      auth: {},
     };
     fs.writeFileSync(DB_PATH, JSON.stringify(fallback, null, 2));
     return fallback;
@@ -95,13 +99,13 @@ const normalizeProjects = (projects) => {
 const seedIfEmpty = () => {
   const db = readDb();
   if (!db.auth) {
-    db.auth = { username: LOGIN_USERNAME };
+    db.auth = {};
   }
-  if (db.auth.username !== LOGIN_USERNAME) {
-    db.auth.username = LOGIN_USERNAME;
-  }
-  if (!db.auth.passwordHash) {
-    db.auth.passwordHash = LOGIN_PASSWORD_HASH;
+  if (!db.auth.username || !db.auth.passwordHash) {
+    const creds = createCredentials();
+    db.auth.username = creds.username;
+    db.auth.passwordHash = creds.passwordHash;
+    db.auth.bootstrapPassword = creds.password;
   }
   if (!db.auth.token) {
     db.auth.token = "";
@@ -150,7 +154,7 @@ const seedIfEmpty = () => {
 seedIfEmpty();
 
 const requireAuth = (req, res, next) => {
-  if (req.path === "/login") {
+  if (req.path === "/login" || req.path === "/bootstrap") {
     return next();
   }
   const header = req.headers.authorization || "";
@@ -166,6 +170,20 @@ const requireAuth = (req, res, next) => {
 
 app.use(requireAuth);
 
+app.get("/bootstrap", (req, res) => {
+  const db = readDb();
+  if (db.auth?.bootstrapPassword && db.auth?.username) {
+    const payload = {
+      username: db.auth.username,
+      password: db.auth.bootstrapPassword,
+    };
+    db.auth.bootstrapPassword = "";
+    writeDb(db);
+    return res.json(payload);
+  }
+  return res.status(204).send();
+});
+
 app.post("/login", (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) {
@@ -175,14 +193,17 @@ app.post("/login", (req, res) => {
     .createHash("sha256")
     .update(password)
     .digest("hex");
-  if (username !== LOGIN_USERNAME || passwordHash !== LOGIN_PASSWORD_HASH) {
+  const db = readDb();
+  if (
+    username !== db.auth?.username ||
+    passwordHash !== db.auth?.passwordHash
+  ) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
-  const db = readDb();
   const token = crypto.randomBytes(24).toString("hex");
   db.auth = {
-    username: LOGIN_USERNAME,
-    passwordHash: LOGIN_PASSWORD_HASH,
+    username: db.auth.username,
+    passwordHash: db.auth.passwordHash,
     token,
   };
   writeDb(db);
