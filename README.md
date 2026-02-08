@@ -1,11 +1,12 @@
 ﻿# Smart Kanban (Single‑Server Deploy)
 
-Modern Kanban board built with React (Vite), Tailwind CSS, and a lightweight Node.js API backed by a JSON file.
+Modern Kanban board built with React (Vite), Tailwind CSS, and a lightweight Node.js API backed by JSON files.
 
 ## What You Get
 - One command to start (`npm run start`)
 - Same‑origin API (no CORS issues)
-- No authentication (open internal tool)
+- Email/password auth (JWT access + httpOnly refresh cookie)
+- Per-user Kanban data
 
 ## Local Dev
 ```bash
@@ -19,6 +20,7 @@ npm run dev
 git clone <YOUR_REPO_URL> kanban
 cd kanban
 npm install
+cp .env.example .env
 sudo PORT=80 npm run start
 ```
 
@@ -29,7 +31,10 @@ Point `xlynx.site` to the server public IP.
 Use Nginx + Let’s Encrypt or your hosting panel.
 
 ## Notes
-- `db.json` is the only storage. Keep a backup.
+- Storage files are created automatically on first run:
+  - `data.json` (projects/tasks)
+  - `auth.json` (users/refresh tokens)
+- These files are ignored by Git. Use `data.example.json` and `auth.example.json` as templates.
 
 ---
 This README is optimized for a one‑command deploy.

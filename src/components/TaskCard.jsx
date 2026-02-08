@@ -18,12 +18,13 @@ const TaskCard = ({
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: task.id, disabled: isOverlay });
 
-  const style = transform
-    ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        willChange: "transform",
-      }
-    : undefined;
+  const style =
+    transform && !isDragging
+      ? {
+          transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+          willChange: "transform",
+        }
+      : undefined;
 
   const draggableProps = isOverlay
     ? {}

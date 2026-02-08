@@ -13,6 +13,8 @@ import KanbanBoard from "./components/KanbanBoard";
 import Modal from "./components/Modal";
 import TaskCard from "./components/TaskCard";
 import { useKanbanApi } from "./hooks/useKanbanApi";
+import { useAuth } from "./hooks/useAuth";
+import AuthScreen from "./components/AuthScreen";
 
 const STATUSES = [
   { id: "todo", label: "To Do", short: "Todo" },
@@ -32,7 +34,39 @@ const COLOR_PALETTE = [
   "#8b5cf6",
 ];
 
+const restrictToViewport = ({
+  transform,
+  activeNodeRect,
+  draggingNodeRect,
+  overlayNodeRect,
+  windowRect,
+}) => {
+  const rect = overlayNodeRect ?? draggingNodeRect ?? activeNodeRect;
+  if (!rect || !windowRect) return transform;
+
+  const minX = windowRect.left - rect.left;
+  const maxX = windowRect.right - rect.right;
+  const minY = windowRect.top - rect.top;
+  const maxY = windowRect.bottom - rect.bottom;
+
+  return {
+    ...transform,
+    x: Math.min(Math.max(transform.x, minX), maxX),
+    y: Math.min(Math.max(transform.y, minY), maxY),
+  };
+};
+
 const App = () => {
+  const {
+    user,
+    loading: authLoading,
+    busy: authBusy,
+    error: authError,
+    login,
+    register,
+    logout,
+    authFetch,
+  } = useAuth();
   const {
     projects,
     tasks,
@@ -44,7 +78,7 @@ const App = () => {
     createTask,
     updateTask,
     deleteTask,
-  } = useKanbanApi();
+  } = useKanbanApi({ authFetch, enabled: Boolean(user) });
   const [selectedProjectId, setSelectedProjectId] = useState("all");
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isEditProjectsOpen, setIsEditProjectsOpen] = useState(false);
@@ -193,10 +227,42 @@ const App = () => {
   const activeProject = projects.find(
     (project) => project.id === activeTask?.projectId
   );
+  const modifiers = useMemo(() => [restrictToViewport], []);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-slate-100 to-indigo-50 text-sm font-semibold text-slate-500">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <AuthScreen
+        onLogin={async (email, password) => {
+          try {
+            await login(email, password);
+          } catch (err) {
+            console.error(err);
+          }
+        }}
+        onRegister={async (email, password) => {
+          try {
+            await register(email, password);
+          } catch (err) {
+            console.error(err);
+          }
+        }}
+        loading={authBusy}
+        error={authError}
+      />
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-indigo-50">
-      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[320px_1fr]">
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-slate-100 to-indigo-50">
+      <div className="grid h-full min-h-0 grid-cols-1 lg:grid-cols-[320px_1fr]">
         <Sidebar
           projects={projects}
           selectedProjectId={selectedProjectId}
@@ -206,7 +272,7 @@ const App = () => {
           tasksCount={tasks.length}
         />
 
-        <main className="flex h-full flex-col px-6 pb-6 pt-10">
+        <main className="flex h-full min-h-0 flex-col overflow-auto px-6 pb-6 pt-10">
           {loading ? (
             <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-500">
               Loading board...
@@ -221,6 +287,7 @@ const App = () => {
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
+                modifiers={modifiers}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
                 onDragCancel={handleDragCancel}
@@ -239,8 +306,26 @@ const App = () => {
                   }}
                   onEditTask={handleEditTask}
                   onDeleteTask={(taskId) => setDeleteTaskId(taskId)}
+                  headerAction={
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-full bg-white/80 px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm">
+                        {user.email}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => logout()}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  }
                 />
-                <DragOverlay adjustScale={false} dropAnimation={null}>
+                <DragOverlay
+                  adjustScale={false}
+                  dropAnimation={null}
+                  modifiers={modifiers}
+                >
                   {activeTask ? (
                     <div className="w-[320px] max-w-[85vw]">
                       <TaskCard

@@ -17,7 +17,7 @@ const handleResponse = async (response) => {
   return response.json();
 };
 
-export const useKanbanApi = () => {
+export const useKanbanApi = ({ authFetch, enabled }) => {
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -26,14 +26,15 @@ export const useKanbanApi = () => {
 
   const fetchAll = useCallback(
     async (silent = false) => {
+      if (!enabled || !authFetch) return;
       if (!silent) {
         setLoading(true);
         setError(null);
       }
       try {
         const [projectsData, tasksData] = await Promise.all([
-          fetch(`${API_BASE}/projects`).then((res) => handleResponse(res)),
-          fetch(`${API_BASE}/tasks`).then((res) => handleResponse(res)),
+          authFetch(`${API_BASE}/projects`).then((res) => handleResponse(res)),
+          authFetch(`${API_BASE}/tasks`).then((res) => handleResponse(res)),
         ]);
         setProjects(projectsData || []);
         setTasks(tasksData || []);
@@ -47,10 +48,17 @@ export const useKanbanApi = () => {
         }
       }
     },
-    []
+    [authFetch, enabled]
   );
 
   useEffect(() => {
+    if (!enabled) {
+      setProjects([]);
+      setTasks([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     fetchAll(false);
   }, [fetchAll]);
 
@@ -58,19 +66,21 @@ export const useKanbanApi = () => {
     if (pollRef.current) {
       clearInterval(pollRef.current);
     }
-    pollRef.current = setInterval(() => {
-      fetchAll(true);
-    }, 5000);
+    if (enabled) {
+      pollRef.current = setInterval(() => {
+        fetchAll(true);
+      }, 5000);
+    }
     return () => {
       if (pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
       }
     };
-  }, [fetchAll]);
+  }, [fetchAll, enabled]);
 
   const createProject = async (payload) => {
-    const project = await fetch(`${API_BASE}/projects`, {
+    const project = await authFetch(`${API_BASE}/projects`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -82,7 +92,7 @@ export const useKanbanApi = () => {
   };
 
   const updateProject = async (projectId, payload) => {
-    const updated = await fetch(`${API_BASE}/projects/${projectId}`, {
+    const updated = await authFetch(`${API_BASE}/projects/${projectId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -96,7 +106,7 @@ export const useKanbanApi = () => {
   };
 
   const deleteProject = async (projectId) => {
-    await fetch(`${API_BASE}/projects/${projectId}`, {
+    await authFetch(`${API_BASE}/projects/${projectId}`, {
       method: "DELETE",
     }).then((res) => handleResponse(res));
     setProjects((prev) => prev.filter((project) => project.id !== projectId));
@@ -104,7 +114,7 @@ export const useKanbanApi = () => {
   };
 
   const createTask = async (payload) => {
-    const task = await fetch(`${API_BASE}/tasks`, {
+    const task = await authFetch(`${API_BASE}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -116,7 +126,7 @@ export const useKanbanApi = () => {
   };
 
   const updateTask = async (taskId, payload) => {
-    const updated = await fetch(`${API_BASE}/tasks/${taskId}`, {
+    const updated = await authFetch(`${API_BASE}/tasks/${taskId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -130,7 +140,7 @@ export const useKanbanApi = () => {
   };
 
   const deleteTask = async (taskId) => {
-    await fetch(`${API_BASE}/tasks/${taskId}`, {
+    await authFetch(`${API_BASE}/tasks/${taskId}`, {
       method: "DELETE",
     }).then((res) => handleResponse(res));
     setTasks((prev) => prev.filter((task) => task.id !== taskId));

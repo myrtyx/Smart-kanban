@@ -11,15 +11,19 @@ This document describes how to integrate **OpenClaw** (Telegram AI agent) with t
 1. **Telegram Bot** — receives user messages.
 2. **AI Interpreter** — extracts task fields.
 3. **OpenClaw Server** — runs on your server and calls the Kanban API.
-4. **Kanban API** — Express server (`server.js`) with `db.json` storage.
+4. **Kanban API** — Express server (`server.js`) with `data.json` storage and auth.
 
 ## 3. Kanban API (Target)
 Base URL: same origin in production (API + frontend served by `server.js`).
 
-Required endpoints:
+Required endpoints (authenticated):
 - `GET /projects`
 - `POST /tasks`
 - `PUT /tasks/:id`
+
+Auth:
+- `POST /auth/login` to obtain access token (JWT).
+- Use `Authorization: Bearer <token>` on API requests.
 
 Create task payload:
 ```

@@ -9,7 +9,7 @@ const Sidebar = ({
   tasksCount,
 }) => {
   return (
-    <aside className="flex h-full w-full flex-col border-r border-slate-200 bg-white/90 px-5 py-6 backdrop-blur">
+    <aside className="flex h-full min-h-0 w-full flex-col overflow-y-auto border-r border-slate-200 bg-white/90 px-5 py-6 backdrop-blur">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">

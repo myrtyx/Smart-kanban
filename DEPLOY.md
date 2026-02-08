@@ -12,6 +12,7 @@ These steps deploy Smart Kanban on **one server** and run it with a single comma
 git clone <YOUR_REPO_URL> kanban
 cd kanban
 npm install
+cp .env.example .env
 ```
 
 ## 3) Start (single command)
@@ -28,6 +29,7 @@ If you need HTTPS, use Nginx + Certbot (or your hosting panel).
 ## Troubleshooting
 - **Blank page / 404** → run `npm run start` to build and serve `dist/`.
 - **Request failed** → check DNS and port 80 firewall.
+- **Login fails** → ensure `JWT_SECRET` is set in `.env`.
 
 ---
 If you want systemd or Nginx configs, ask and I will generate them.
